@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CBL Production Control System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .production-card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .status-waiting {
+            background-color: #17a2b8;
+        }
+        .status-running {
+            background-color: #28a745;
+        }
+        .status-stopped {
+            background-color: #dc3545;
+        }
+        .status-completed {
+            background-color: #6c757d;
+        }
+        .monitor-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        .qr-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .qr-image {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+        .qr-data {
+            font-family: monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+        .sensor-btn {
+            margin: 5px;
+        }
+        .timer {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #dc3545;
+        }
+        .progress-container {
+            margin: 20px 0;
+        }
+        .summary-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .indicator-light {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 10px;
+            border: 1px solid #000;
+        }
+        .light-off {
+            background-color: #ccc;
+        }
+        .light-green {
+            background-color: #28a745;
+        }
+        .light-red {
+            background-color: #dc3545;
+        }
+        .sensor-instruction {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="text-center mb-4">CBL Production Control System</h1>
+        
+        <!-- Production Form -->
+        <div class="card production-card" id="formPanel">
+            <div class="card-header bg-primary text-white">
+                <h2>Start New Production</h2>
+            </div>
+            <div class="card-body">
+                <form id="productionForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="biscuitType" class="form-label">Biscuit Type</label>
+                            <select class="form-select" id="biscuitType" required>
+                                <option value="">Select type</option>
+                                <option value="Chocolate">Chocolate</option>
+                                <option value="Cream">Cream</option>
+                                <option value="Digestive">Digestive</option>
+                                <option value="GlutenFree">Gluten Free</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="brand" class="form-label">Brand</label>
+                            <input type="text" class="form-control" id="brand" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Production Quantity</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="productionType" id="p1" value="P1" checked>
+                                <label class="form-check-label" for="p1">
+                                    P1 (10 boxes)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="productionType" id="p2" value="P2">
+                                <label class="form-check-label" for="p2">
+                                    P2 (20 boxes)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="productionType" id="custom" value="Custom">
+                                <label class="form-check-label" for="custom">
+                                    Custom Quantity
+                                </label>
+                                <input type="number" class="form-control mt-2" id="customQuantity" disabled min="1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="startBtn">Start Production</button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Production Control -->
+        <div class="card production-card" id="controlPanel" style="display: none;">
+            <div class="card-header bg-info text-white">
+                <h2>Production Control</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4>Production Status</h4>
+                        <div id="productionStatus">
+                            <p><span class="status-indicator status-waiting"></span> <span id="statusText">Waiting to start</span></p>
+                            <div class="progress-container">
+                                <div class="progress">
+                                    <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <div class="text-center mt-1">
+                                    <span id="producedCount">0</span>/<span id="totalCount">0</span> boxes
+                                </div>
+                            </div>
+                            <div class="qr-display" id="currentQrCode">
+                                <img id="qrImage" class="qr-image" src="" alt="QR Code">
+                                <div id="qrData" class="qr-data">No QR code generated yet</div>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <div>Accepted: <span id="acceptedCount" class="badge bg-success">0</span></div>
+                                <div>Rejected: <span id="rejectedCount" class="badge bg-danger">0</span></div>
+                            </div>
+                            <div id="timerDisplay" class="timer mt-3" style="display: none;">
+                                <div class="alert alert-warning">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Time left for QR scanner:</span>
+                                        <span id="timeLeft">5</span>s
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3" id="conveyorControl">
+                            <button class="btn btn-success" id="simulateConveyorBtn">Simulate Conveyor Start</button>
+                        </div>
+                        
+                        <div class="mt-3" id="restartControl" style="display: none;">
+                            <div class="alert alert-danger">
+                                <p>Production stopped due to rejected box</p>
+                                <button class="btn btn-warning" id="restartBtn">Restart Conveyor</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h4>Sensors Control</h4>
+                        <div class="sensor-instruction">
+                            <p id="sensorInstructionText">Press the physical push buttons when boxes arrive at each sensor position</p>
+                            <div class="alert alert-primary">
+                                <strong>Current Sensor 1 Status (400002):</strong> 
+                                <span id="proximity1StatusText">Not activated</span>
+                            </div>
+                            <div class="alert alert-primary">
+                                <strong>Current Sensor 2 Status (400003):</strong> 
+                                <span id="proximity2StatusText">Not activated</span>
+                            </div>
+                            <button class="btn btn-primary sensor-btn" id="activateScannerBtn" disabled>Activate QR Scanner</button>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h4>PLC Memory Status</h4>
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Address</th>
+                                        <th>Description</th>
+                                        <th>Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>400001</td>
+                                        <td>Conveyor Control</td>
+                                        <td id="conveyorStatus">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>400002</td>
+                                        <td>Proximity Sensor 1 (Push Button)</td>
+                                        <td id="proximity1Status">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>400003</td>
+                                        <td>Proximity Sensor 2 (Push Button)</td>
+                                        <td id="proximity2Status">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>400004</td>
+                                        <td>QR Scanner</td>
+                                        <td id="scannerStatus">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>400005</td>
+                                        <td>Accepted Boxes</td>
+                                        <td id="acceptedBoxes">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>400006</td>
+                                        <td>Production Complete</td>
+                                        <td id="productionComplete">0</td>
+                                    </tr>
+                                    <tr>
+                                        <td>400007</td>
+                                        <td>Box Status Indicator</td>
+                                        <td id="boxStatusIndicator">0</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="mt-4 text-center">
+                            <h4>Indicator Lights</h4>
+                            <div class="d-flex justify-content-center align-items-center">
+                                <div>
+                                    <div class="indicator-light light-off" id="greenLight"></div>
+                                    <div>Accepted&nbsp&nbsp </div>
+                                </div>
+                                <div>
+                                    <div class="indicator-light light-off" id="redLight"></div>
+                                    <div>Rejected&nbsp&nbsp </div>
+                                </div>
+                                <div>
+                                    <div class="indicator-light light-off" id="completeLight"></div>
+                                    <div>Complete&nbsp&nbsp </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Production Summary -->
+        <div class="card production-card" id="summaryPanel" style="display: none;">
+            <div class="card-header bg-success text-white">
+                <h2>Production Summary</h2>
+            </div>
+            <div class="card-body" id="summaryContent">
+                <!-- Summary will be loaded here -->
+            </div>
+            <div class="card-footer summary-actions">
+                <button class="btn btn-primary" id="printBtn">Print Report</button>
+                <button class="btn btn-success" id="downloadPdfBtn">Download PDF</button>
+                <button class="btn btn-secondary" id="closeBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // DOM elements
+        const formPanel = document.getElementById('formPanel');
+        const productionForm = document.getElementById('productionForm');
+        const startBtn = document.getElementById('startBtn');
+        const controlPanel = document.getElementById('controlPanel');
+        const summaryPanel = document.getElementById('summaryPanel');
+        const statusText = document.getElementById('statusText');
+        const statusIndicator = document.querySelector('#productionStatus .status-indicator');
+        const qrImage = document.getElementById('qrImage');
+        const qrData = document.getElementById('qrData');
+        const producedCount = document.getElementById('producedCount');
+        const totalCount = document.getElementById('totalCount');
+        const acceptedCount = document.getElementById('acceptedCount');
+        const rejectedCount = document.getElementById('rejectedCount');
+        const progressBar = document.getElementById('progressBar');
+        const simulateConveyorBtn = document.getElementById('simulateConveyorBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const activateScannerBtn = document.getElementById('activateScannerBtn');
+        const sensorInstructionText = document.getElementById('sensorInstructionText');
+        const proximity1StatusText = document.getElementById('proximity1StatusText');
+        const proximity2StatusText = document.getElementById('proximity2StatusText');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timeLeft = document.getElementById('timeLeft');
+        const conveyorControl = document.getElementById('conveyorControl');
+        const restartControl = document.getElementById('restartControl');
+        const printBtn = document.getElementById('printBtn');
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        const closeBtn = document.getElementById('closeBtn');
+
+        // PLC monitor elements
+        const conveyorStatus = document.getElementById('conveyorStatus');
+        const proximity1Status = document.getElementById('proximity1Status');
+        const proximity2Status = document.getElementById('proximity2Status');
+        const scannerStatus = document.getElementById('scannerStatus');
+        const acceptedBoxes = document.getElementById('acceptedBoxes');
+        const productionComplete = document.getElementById('productionComplete');
+        const boxStatusIndicator = document.getElementById('boxStatusIndicator');
+
+        // Indicator lights
+        const greenLight = document.getElementById('greenLight');
+        const redLight = document.getElementById('redLight');
+        const completeLight = document.getElementById('completeLight');
+
+        // Timer variables
+        let timerInterval;
+        let secondsLeft = 5;
+
+        // Radio button toggle
+        document.querySelectorAll('input[name="productionType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('customQuantity').disabled = this.value !== 'Custom';
+            });
+        });
+
+        // Start production
+        productionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const biscuitType = document.getElementById('biscuitType').value;
+            const brand = document.getElementById('brand').value;
+            const productionType = document.querySelector('input[name="productionType"]:checked').value;
+            const customQuantity = document.getElementById('customQuantity').value;
+            
+            fetch('/start_production', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    biscuit_type: biscuitType,
+                    brand: brand,
+                    production_type: productionType,
+                    custom_quantity: customQuantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                // Show control panel, hide form
+                formPanel.style.display = 'none';
+                controlPanel.style.display = 'block';
+                summaryPanel.style.display = 'none';
+                
+                // Update initial status
+                statusText.textContent = 'Waiting for conveyor to start';
+                statusIndicator.className = 'status-indicator status-waiting';
+                updateQrCodeDisplay(data.first_qr_code);
+                totalCount.textContent = data.total_quantity;
+                progressBar.style.width = '0%';
+                
+                // Show conveyor control
+                conveyorControl.style.display = 'block';
+                restartControl.style.display = 'none';
+                timerDisplay.style.display = 'none';
+                
+                // Reset sensor buttons
+                activateScannerBtn.disabled = true;
+                sensorInstructionText.textContent = 'Press the physical push buttons when boxes arrive at each sensor position';
+                proximity1StatusText.textContent = 'Waiting for activation (PLC address 400002)';
+                proximity2StatusText.textContent = 'Waiting for activation (PLC address 400003)';
+                
+                // Reset indicator lights
+                resetIndicatorLights();
+                
+                // Start monitoring
+                monitorProduction();
+                monitorPLC();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to start production');
+            });
+        });
+
+        // Update QR code display
+        function updateQrCodeDisplay(qrCodeData) {
+            if (qrCodeData && qrCodeData.qr_image) {
+                qrImage.src = qrCodeData.qr_image;
+                qrImage.style.display = 'block';
+                qrData.textContent = qrCodeData.qr_data;
+            } else {
+                qrImage.style.display = 'none';
+                qrData.textContent = 'No QR code generated yet';
+            }
+        }
+
+        // Simulate conveyor start
+        simulateConveyorBtn.addEventListener('click', function() {
+            fetch('/simulate_conveyor_start', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                alert('Conveyor started (simulated) - Production will now begin');
+                conveyorControl.style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to simulate conveyor');
+            });
+        });
+
+        // Restart conveyor after rejection
+        restartBtn.addEventListener('click', function() {
+            fetch('/restart_conveyor', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                // Update UI
+                statusText.textContent = 'Production running - waiting for sensors';
+                statusIndicator.className = 'status-indicator status-running';
+                updateQrCodeDisplay(data.current_qr_code);
+                
+                // Hide restart button
+                restartControl.style.display = 'none';
+                timerDisplay.style.display = 'none';
+                
+                // Reset sensor buttons
+                activateScannerBtn.disabled = true;
+                sensorInstructionText.textContent = 'Press the physical push buttons when boxes arrive at each sensor position';
+                proximity1StatusText.textContent = 'Waiting for activation (PLC address 400002)';
+                proximity2StatusText.textContent = 'Waiting for activation (PLC address 400003)';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to restart conveyor');
+            });
+        });
+
+        // Activate QR scanner
+        activateScannerBtn.addEventListener('click', function() {
+            fetch('/activate_scanner', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                console.log('QR scanner activated');
+                
+                // Disable scanner button until next box
+                activateScannerBtn.disabled = true;
+                sensorInstructionText.textContent = 'Waiting for QR scanner result...';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to activate QR scanner');
+            });
+        });
+
+        // Start timer for QR scanner activation
+        function startTimer(seconds) {
+            clearInterval(timerInterval);
+            secondsLeft = seconds;
+            timeLeft.textContent = secondsLeft;
+            timerDisplay.style.display = 'block';
+            
+            timerInterval = setInterval(() => {
+                secondsLeft--;
+                timeLeft.textContent = secondsLeft;
+                
+                if (secondsLeft <= 0) {
+                    clearInterval(timerInterval);
+                    timerDisplay.style.display = 'none';
+                }
+            }, 1000);
+        }
+
+        // Reset indicator lights
+        function resetIndicatorLights() {
+            greenLight.className = 'indicator-light light-off';
+            redLight.className = 'indicator-light light-off';
+            completeLight.className = 'indicator-light light-off';
+        }
+
+        // Update indicator lights based on PLC status
+        function updateIndicatorLights(boxStatus, productionCompleteStatus) {
+            // Reset all lights first
+            resetIndicatorLights();
+            
+            // Update based on box status
+            if (boxStatus === 1) {
+                greenLight.className = 'indicator-light light-green';
+            } else if (boxStatus === 2) {
+                redLight.className = 'indicator-light light-red';
+            }
+            
+            // Update production complete light
+            if (productionCompleteStatus === 1) {
+                completeLight.className = 'indicator-light light-green';
+            }
+        }
+
+        // Monitor production status
+        function monitorProduction() {
+            fetch('/check_production_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                
+                if (data.status === 'waiting_for_conveyor') {
+                    statusText.textContent = 'Waiting for conveyor to start';
+                    statusIndicator.className = 'status-indicator status-waiting';
+                    
+                    // Update sensor instructions when conveyor starts
+                    if (data.waiting_for_proximity_1) {
+                        activateScannerBtn.disabled = true;
+                        sensorInstructionText.textContent = 'Press the physical push button when the box arrives at Sensor 1 position';
+                        proximity1StatusText.textContent = 'Waiting for activation (PLC address 400002)';
+                        proximity2StatusText.textContent = 'Waiting for activation (PLC address 400003)';
+                    }
+                } 
+                else if (data.status === 'running') {
+                    statusIndicator.className = 'status-indicator status-running';
+                    
+                    if (data.waiting_for_proximity_1) {
+                        statusText.textContent = 'Production running - waiting for proximity sensor 1';
+                        
+                        // Update sensor instructions
+                        activateScannerBtn.disabled = true;
+                        
+                        if (data.has_queued_box) {
+                            sensorInstructionText.textContent = 'Box detected at Sensor 1 - waiting for current box to complete';
+                            proximity1StatusText.textContent = 'Push button pressed (PLC address 400002 = 1)';
+                        } else {
+                            sensorInstructionText.textContent = 'Press the physical push button when the box arrives at Sensor 1 position';
+                            proximity1StatusText.textContent = 'Waiting for activation (PLC address 400002)';
+                        }
+                    } 
+                    else if (data.waiting_for_proximity_2) {
+                        statusText.textContent = 'Production running - waiting for proximity sensor 2';
+                        
+                        // Update sensor instructions
+                        activateScannerBtn.disabled = true;
+                        sensorInstructionText.textContent = 'Now press the physical push button at Sensor 2 position';
+                        proximity1StatusText.textContent = 'Push button pressed (PLC address 400002 = 1)';
+                        proximity2StatusText.textContent = 'Waiting for activation (PLC address 400003)';
+                    }
+                    else if (data.waiting_for_qr) {
+                        statusText.textContent = 'Production running - waiting for QR scanner';
+                        
+                        // Timer is now started in monitorPLC when proximity 2 is activated
+                        // So we don't need to start it here again
+                        
+                        if (data.has_queued_box) {
+                            sensorInstructionText.textContent = 'Box detected at Sensor 1 - waiting for current scan to complete';
+                            proximity1StatusText.textContent = 'Push button pressed (PLC address 400002 = 1)';
+                            proximity2StatusText.textContent = 'Push button pressed (PLC address 400003 = 1)';
+                        } else {
+                            // Instruction text is set in monitorPLC
+                            proximity1StatusText.textContent = 'Push button pressed (PLC address 400002 = 1)';
+                            proximity2StatusText.textContent = 'Push button pressed (PLC address 400003 = 1)';
+                        }
+                    }
+                } 
+                else if (data.status === 'accepted') {
+                    statusText.textContent = 'Box accepted - next box in progress';
+                    statusIndicator.className = 'status-indicator status-running';
+                    
+                    // Update progress
+                    const progress = (data.accepted_boxes + data.rejected_boxes) / parseInt(totalCount.textContent) * 100;
+                    progressBar.style.width = `${progress}%`;
+                    producedCount.textContent = data.accepted_boxes + data.rejected_boxes;
+                    acceptedCount.textContent = data.accepted_boxes;
+                    
+                    // Update current QR code
+                    if (data.current_qr_code) {
+                        updateQrCodeDisplay(data.current_qr_code);
+                    }
+                    
+                    // Check if we have a queued box
+                    if (data.has_queued_box) {
+                        // Immediately process the queued box
+                        activateScannerBtn.disabled = true;
+                        sensorInstructionText.textContent = 'Processing queued box - press Sensor 2 push button';
+                        proximity1StatusText.textContent = 'Push button pressed (PLC address 400002 = 1)';
+                        proximity2StatusText.textContent = 'Waiting for activation (PLC address 400003)';
+                    } else {
+                        // Reset for next box
+                        activateScannerBtn.disabled = true;
+                        sensorInstructionText.textContent = 'Press the physical push button when the next box arrives at Sensor 1 position';
+                        proximity1StatusText.textContent = 'Waiting for activation (PLC address 400002)';
+                        proximity2StatusText.textContent = 'Waiting for activation (PLC address 400003)';
+                    }
+                }
+                else if (data.status === 'stopped') {
+                    statusText.textContent = 'Production stopped - box rejected';
+                    statusIndicator.className = 'status-indicator status-stopped';
+                    
+                    // Update rejected count
+                    rejectedCount.textContent = data.rejected_boxes;
+                    
+                    // Show restart button
+                    restartControl.style.display = 'block';
+                    timerDisplay.style.display = 'none';
+                    
+                    // Disable all sensor buttons
+                    activateScannerBtn.disabled = true;
+                    sensorInstructionText.textContent = 'Production stopped - please restart conveyor';
+                    proximity1StatusText.textContent = 'System stopped';
+                    proximity2StatusText.textContent = 'System stopped';
+                } 
+                else if (data.status === 'completed') {
+                    statusText.textContent = 'Production completed';
+                    statusIndicator.className = 'status-indicator status-completed';
+                    
+                    // Update final counts
+                    acceptedCount.textContent = data.accepted_boxes;
+                    rejectedCount.textContent = data.rejected_boxes;
+                    progressBar.style.width = '100%';
+                    producedCount.textContent = parseInt(totalCount.textContent);
+                    
+                    // Disable all sensor buttons
+                    activateScannerBtn.disabled = true;
+                    sensorInstructionText.textContent = 'Production completed';
+                    proximity1StatusText.textContent = 'System completed';
+                    proximity2StatusText.textContent = 'System completed';
+                    
+                    // Get the full production data for the summary
+                    fetch('/production_summary')
+                        .then(response => response.json())
+                        .then(summaryData => {
+                            if (summaryData.error) {
+                                console.error('Error:', summaryData.error);
+                                return;
+                            }
+                            showSummary(summaryData);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        });
+                }
+                
+                // Continue monitoring
+                setTimeout(monitorProduction, 1000);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                setTimeout(monitorProduction, 5000);
+            });
+        }
+
+        // Monitor PLC values
+        function monitorPLC() {
+            fetch('/production_summary')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                
+                const plc = data.plc_status;
+                
+                // Update PLC monitor
+                conveyorStatus.textContent = plc.conveyor;
+                proximity1Status.textContent = plc.proximity_1;
+                proximity2Status.textContent = plc.proximity_2;
+                scannerStatus.textContent = plc.scanner;
+                acceptedBoxes.textContent = plc.accepted_boxes;
+                productionComplete.textContent = plc.production_complete;
+                boxStatusIndicator.textContent = plc.box_status;
+                
+                // Update status text indicators
+                proximity1StatusText.textContent = plc.proximity_1 === 1 ? 
+                    'Push button pressed (PLC address 400002 = 1)' : 
+                    'Waiting for activation (PLC address 400002)';
+                
+                proximity2StatusText.textContent = plc.proximity_2 === 1 ? 
+                    'Push button pressed (PLC address 400003 = 1)' : 
+                    'Waiting for activation (PLC address 400003)';
+                
+                // Enable QR scanner button when proximity 2 is activated
+                if (plc.proximity_2 === 1) {
+                    activateScannerBtn.disabled = false;
+                    sensorInstructionText.textContent = 'Press QR Scanner button to accept the box';
+                    startTimer(5); // Start the timer for QR scanning
+                }
+                
+                // Update indicator lights
+                updateIndicatorLights(plc.box_status, plc.production_complete);
+                
+                // Continue monitoring
+                setTimeout(monitorPLC, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                setTimeout(monitorPLC, 1000);
+            });
+        }
+
+        // Show production summary
+        function showSummary(data) {
+            controlPanel.style.display = 'none';
+            summaryPanel.style.display = 'block';
+            formPanel.style.display = 'none';
+            
+            const production = data.production_data || data;
+            const startTime = new Date(production.start_time);
+            const endTime = production.end_time ? new Date(production.end_time) : new Date();
+            const duration = Math.round((endTime - startTime) / 1000);
+            const successRate = Math.round((production.accepted_boxes / production.quantity) * 100);
+            
+            const summaryHTML = `
+                <h4>${production.biscuit_type} - ${production.brand}</h4>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5>Production Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Type:</strong> ${production.production_type}</p>
+                                <p><strong>Quantity:</strong> ${production.quantity} boxes</p>
+                                <p><strong>Start Time:</strong> ${startTime.toLocaleString()}</p>
+                                <p><strong>End Time:</strong> ${endTime.toLocaleString()}</p>
+                                <p><strong>Duration:</strong> ${duration} seconds</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5>Results</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Accepted Boxes:</span>
+                                    <span class="badge bg-success">${production.accepted_boxes}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Rejected Boxes:</span>
+                                    <span class="badge bg-danger">${production.rejected_boxes}</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Success Rate:</span>
+                                    <span class="badge bg-primary">${successRate}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>Generated QR Codes</h5>
+                    </div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                        <ul class="list-group">
+                            ${production.qr_codes.map(qr_code => `
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>${qr_code.unique_id}</strong>
+                                            <div class="small">${qr_code.qr_data}</div>
+                                        </div>
+                                        <span class="badge ${production.accepted_boxes > production.qr_codes.indexOf(qr_code) ? 'bg-success' : 'bg-danger'}">
+                                            ${production.accepted_boxes > production.qr_codes.indexOf(qr_code) ? 'Accepted' : 'Rejected'}
+                                        </span>
+                                    </div>
+                                    <div class="text-center mt-2">
+                                        <img src="${qr_code.qr_image}" style="max-width: 100px;" alt="QR Code">
+                                    </div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('summaryContent').innerHTML = summaryHTML;
+        }
+
+        // Print button handler
+        printBtn.addEventListener('click', function() {
+            window.print();
+        });
+
+        // Download PDF button handler
+        downloadPdfBtn.addEventListener('click', function() {
+            window.location.href = '/generate_pdf';
+        });
+
+        // Close button handler
+        closeBtn.addEventListener('click', function() {
+            fetch('/reset_production', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                // Reload the page to show the form again
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to reset production');
+            });
+        });
+    </script>
+</body>
+</html>

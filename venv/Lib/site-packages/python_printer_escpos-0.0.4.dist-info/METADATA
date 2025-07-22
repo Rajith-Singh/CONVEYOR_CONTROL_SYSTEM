@@ -1,0 +1,20 @@
+Metadata-Version: 2.1
+Name: python-printer-escpos
+Version: 0.0.4
+Summary: Python interface for ESCPOS Printers
+Home-page: https://github.com/shantanubhadoria/python-printer-escpos
+Author: Shantanu Bhadoria
+Author-email: shantanu@cpan.org
+Maintainer: 
+Maintainer-email: 
+License: Apache License, Version 2.0
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Programming Language :: Python
+Requires-Dist: Pillow
+Requires-Dist: pyserial
+Requires-Dist: pyusb
+Requires-Dist: qrcode
+
+Please visit https://github.com/shantanubhadoria/python-printer-escpos for more information!
+

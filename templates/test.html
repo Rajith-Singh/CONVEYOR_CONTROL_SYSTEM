@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLC Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+        }
+        button {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #statusDisplay {
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+            text-align: center;
+        }
+        .status-on {
+            background-color: #a1ffa1;
+            color: #006400;
+        }
+        .status-off {
+            background-color: #ffb3b3;
+            color: #8b0000;
+        }
+        .status-error {
+            background-color: #ffeb3b;
+            color: #ff5722;
+        }
+        .status-disconnected {
+            background-color: #e0e0e0;
+            color: #616161;
+        }
+        #errorDisplay {
+            color: #d32f2f;
+            margin: 10px 0;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>PLC Control</h1>
+    
+    <div id="statusDisplay" class="status-disconnected">Disconnected</div>
+    <div id="errorDisplay"></div>
+    
+    <button id="onButton">ON</button>
+    <button id="offButton">OFF</button>
+
+    <script>
+        const statusDisplay = document.getElementById('statusDisplay');
+        const errorDisplay = document.getElementById('errorDisplay');
+        let refreshInterval;
+        let isConnected = false;
+
+        function updateStatusDisplay(value, error = null) {
+            if (error) {
+                statusDisplay.textContent = 'Error';
+                statusDisplay.className = 'status-error';
+                errorDisplay.textContent = error;
+                isConnected = false;
+                return;
+            }
+
+            isConnected = true;
+            errorDisplay.textContent = '';
+            
+            if (value) {
+                statusDisplay.textContent = 'ON';
+                statusDisplay.className = 'status-on';
+            } else {
+                statusDisplay.textContent = 'OFF';
+                statusDisplay.className = 'status-off';
+            }
+        }
+
+        async function readPLCStatus() {
+            try {
+                const response = await fetch('/read_plc');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to read from PLC');
+                }
+                
+                const data = await response.json();
+                updateStatusDisplay(data.value);
+            } catch (error) {
+                updateStatusDisplay(null, error.message);
+            }
+        }
+
+        async function sendBooleanToPLC(value) {
+            try {
+                const response = await fetch('/write_plc', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        value: value
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to write to PLC');
+                }
+                
+                // Refresh status after write
+                await readPLCStatus();
+            } catch (error) {
+                updateStatusDisplay(null, error.message);
+            }
+        }
+
+        // Event listeners for the ON and OFF buttons
+        document.getElementById('onButton').addEventListener('click', function() {
+            if (!isConnected) {
+                updateStatusDisplay(null, 'Not connected to PLC');
+                return;
+            }
+            sendBooleanToPLC(true);
+        });
+
+        document.getElementById('offButton').addEventListener('click', function() {
+            if (!isConnected) {
+                updateStatusDisplay(null, 'Not connected to PLC');
+                return;
+            }
+            sendBooleanToPLC(false);
+        });
+
+        // Initialize status display and set up periodic refresh
+        document.addEventListener('DOMContentLoaded', function() {
+            readPLCStatus();
+            // Refresh every 2 seconds
+            refreshInterval = setInterval(readPLCStatus, 2000);
+        });
+
+        // Clean up interval when page is unloaded
+        window.addEventListener('beforeunload', function() {
+            clearInterval(refreshInterval);
+        });
+    </script>
+</body>
+</html>

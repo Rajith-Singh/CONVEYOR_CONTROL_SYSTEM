@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLC Memory Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .status {
+            font-size: 24px;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin: 0 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            color: white;
+        }
+        .btn-on {
+            background-color: #4CAF50;
+        }
+        .btn-off {
+            background-color: #f44336;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+        .alert-error {
+            color: #a94442;
+            background-color: #f2dede;
+            border-color: #ebccd1;
+        }
+        .alert-success {
+            color: #3c763d;
+            background-color: #dff0d8;
+            border-color: #d6e9c6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PLC Memory Control</h1>
+        <p>Control Modbus Holding Register 400001</p>
+        
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="status">
+            Current Value: <strong>{{ current_value }}</strong>
+        </div>
+        
+        <form action="/update" method="post">
+            <button type="submit" name="value" value="1" class="btn btn-on">Set to 1 (ON)</button>
+            <button type="submit" name="value" value="0" class="btn btn-off">Set to 0 (OFF)</button>
+        </form>
+        
+        <div style="margin-top: 30px; font-size: 14px; color: #666;">
+            PLC IP: {{ PLC_IP }}:{{ PLC_PORT }} | Register: 400001
+        </div>
+    </div>
+</body>
+</html>
