@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # PLC connection parameters
-PLC_IP = "192.168.10.21"
+PLC_IP = "112.135.194.254"
 PLC_PORT = 502
 
 # Printer configuration
@@ -451,7 +451,8 @@ def check_production_status():
                 response.update({
                     'status': 'completed',
                     'accepted_boxes': production['accepted_boxes'],
-                    'rejected_boxes': production['rejected_boxes']
+                    'rejected_boxes': production['rejected_boxes'],
+                    'show_summary': True  # <-- Add this flag
                 })
                 return jsonify(response), 200
 
@@ -572,7 +573,8 @@ def check_production_status():
             response.update({
                 'status': 'completed',
                 'accepted_boxes': production['accepted_boxes'],
-                'rejected_boxes': production['rejected_boxes']
+                'rejected_boxes': production['rejected_boxes'],
+                'show_summary': True  # <-- Add this flag
             })
 
         elif production['status'] == 'stopped':

@@ -682,19 +682,22 @@
                     proximity1StatusText.textContent = 'System completed';
                     proximity2StatusText.textContent = 'System completed';
                     
-                    // Get the full production data for the summary
-                    fetch('/production_summary')
-                        .then(response => response.json())
-                        .then(summaryData => {
-                            if (summaryData.error) {
-                                console.error('Error:', summaryData.error);
-                                return;
-                            }
-                            showSummary(summaryData);
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                        });
+                    // Show summary automatically if flag is set
+                    if (data.show_summary) {
+                        fetch('/production_summary')
+                            .then(response => response.json())
+                            .then(summaryData => {
+                                if (summaryData.error) {
+                                    console.error('Error:', summaryData.error);
+                                    return;
+                                }
+                                showSummary(summaryData);
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                            });
+                        return; // Stop further polling
+                    }
                 }
                 
                 // Continue monitoring

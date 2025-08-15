@@ -106,4 +106,4 @@ def refresh_values():
         return jsonify({'success': False, 'message': 'Failed to read registers'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=7000)
